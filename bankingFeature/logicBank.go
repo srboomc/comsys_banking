@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"math/rand"
 	"os"
 	"time"
@@ -62,6 +63,7 @@ func createAccount() {
 		phone,
 		password,
 		deposit})
+
 	b, err := json.Marshal(a1)
 	if err != nil {
 		fmt.Println("error:", err)
@@ -78,9 +80,12 @@ func loginpage() {
 	fmt.Scan(&phone)
 	fmt.Printf("Password : ")
 	fmt.Scan(&password)
+	start := time.Now()
 
 	for i := 0; i < len(listAccount); i++ {
 		if listAccount[i].Phone == phone && listAccount[i].Password == password {
+			elapsed := time.Since(start)
+			log.Printf("took %s", elapsed)
 			transaction()
 		} else {
 			fmt.Println("Invalid password")
@@ -106,7 +111,7 @@ func transaction() {
 	case selection == 2:
 		withdraw()
 	case selection == 3:
-		fmt.Println("No service yet")
+		transfer()
 	case selection == 4:
 		balance()
 	case selection == 5:
@@ -152,22 +157,54 @@ func withdraw() {
 	}
 }
 
+func transfer() {
+	var sender string
+	var receiver string
+	var money uint32
+
+	fmt.Printf("sender phone : ")
+	fmt.Scan(&sender)
+	fmt.Printf("receiver phone : ")
+	fmt.Scan(&receiver)
+	fmt.Printf("Amount of money : ")
+	fmt.Scan(&money)
+
+	start := time.Now()
+
+	for i := 0; i < len(listAccount); i++ {
+		if listAccount[i].Phone == sender && sender == phone {
+			if listAccount[i].Balance < money {
+				fmt.Println("Invalid")
+			} else {
+				listAccount[i].Balance -= money
+			}
+		}
+	}
+	for i := 0; i < len(listAccount); i++ {
+		if listAccount[i].Phone == receiver {
+			listAccount[i].Balance += money
+		}
+	}
+	elapsed := time.Since(start)
+	log.Printf("took %s", elapsed)
+
+	transaction()
+}
+
 func balance() {
-	var number string
 	var choice int
 
 	for i := 0; i < len(listAccount); i++ {
 		if phone == listAccount[i].Phone {
-
 			fmt.Println("Your balance is : ", listAccount[i].Balance)
 		}
 	}
 	fmt.Printf("type 0 to exit : ")
-	fmt.Scan(&number)
+	fmt.Scan(&choice)
 	if choice == 0 {
 		transaction()
 	}
-
+	transaction()
 }
 
 func showAccount() {
