@@ -6,6 +6,17 @@ import (
 
 const cacheSize = 5
 
+func main() {
+	fmt.Println("START CACHE")
+	cache := NewCache()
+	for _, word := range []string{"1811", "password", "123", "456", "babababa", "111"} {
+		cache.Check(word)
+		// cache.Display()
+	}
+	cache.Display()
+
+}
+
 type Node struct {
 	Val   string
 	Left  *Node
@@ -93,16 +104,5 @@ func (q *Queue) Display() {
 		}
 		node = node.Right
 	}
-
-}
-
-func main() {
-	fmt.Println("START CACHE")
-	cache := NewCache()
-	for _, word := range []string{"1811", "password", "123", "456", "babababa", "111"} {
-		cache.Check(word)
-		// cache.Display()
-	}
-	cache.Display()
 
 }
