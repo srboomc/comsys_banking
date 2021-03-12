@@ -28,7 +28,7 @@ func (b *Backends) String() string {
 }
 
 var (
-	bind = flag.String("bind", "127.0.0.1:4000", "The address to bind on") //143.198.196.98 #127.0.0.1
+	bind = flag.String("bind", "10.36.7.166:4000", "The address to bind on") //143.198.196.98 #127.0.0.1
 	// balance = flag.String("balance", "10.36.7.166:4001", "The backend servers to balance connections across, separated by commas")
 	balance  = flag.String("balance", "127.0.0.1:4001,127.0.0.1:4002", "The backend servers to balance connections across, separated by commas")
 	backends *Backends
@@ -52,6 +52,7 @@ func init() {
 func copy(wc io.WriteCloser, r io.Reader) {
 	defer wc.Close()
 	io.Copy(wc, r)
+
 }
 
 func handleConnection(us net.Conn, server string) {
@@ -131,13 +132,19 @@ func main() {
 	}
 
 	log.Printf("listening on %s, balancing %s", *bind, backends)
-
+	count := 0
 	for {
+		// defer ln.Close()
 		conn, err := ln.Accept()
+		count++
+
+		fmt.Println(count)
 		if err != nil {
 			log.Printf("failed to accept: %s", err)
 			continue
 		}
 		go handleConnection(conn, backends.Choose())
+		// count++
 	}
+	// fmt.Println(count)
 }
