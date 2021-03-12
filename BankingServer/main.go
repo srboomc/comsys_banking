@@ -3,6 +3,8 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
+	"sync"
 
 	// "net/http"
 
@@ -14,7 +16,6 @@ type SQLHandler struct {
 }
 
 type accountInfo struct {
-	ID            int    `json:"id"`
 	Date          string `json:"date"`
 	AccountName   string `json:"accountName"`
 	AccountNumber int    `json:"accountNumber"`
@@ -23,8 +24,8 @@ type accountInfo struct {
 }
 
 type balance struct {
-	AccountName string `json:"accountName"`
-	Balance     int    `json:"balance"`
+	// AccountNumber string `json:"accountNumber"`
+	Balance int `json:"balance"`
 }
 
 var sqliteHandler SQLHandler
@@ -36,14 +37,75 @@ func checkErr(err error) {
 	}
 }
 
-func checkBalance() {
-	data, err := sqliteHandler.Conn.Query("select Account_Name, Balance from Account_info")
+var m sync.Mutex
+
+func tranfer(sndAccount int, recvAccount int, amount int) string {
+	m.Lock()
+	sndBalance := retrieveUserBalance(strconv.Itoa(sndAccount))
+	if amount > sndBalance {
+		return ("not enough money!!!")
+	}
+	remain := retrieveUserBalance(strconv.Itoa(recvAccount))
+	sqliteHandler.Conn.Query("SET SQL_SAFE_UPDATES = 0")
+
+	sqliteHandler.Conn.Query("insert into Transaction_Table (timestamp, senderAccount, receiverAccount, amount) values ( NOW()," + strconv.Itoa(sndAccount) + "," + strconv.Itoa(recvAccount) + "," + strconv.Itoa(amount) + ")")
+	sqliteHandler.Conn.Query("update Account_info set Balance = " + strconv.Itoa(sndBalance-amount) + " where Account_Number = " + strconv.Itoa(sndAccount))
+	sqliteHandler.Conn.Query("update Account_info set Balance = " + strconv.Itoa(remain+amount) + " where Account_Number = " + strconv.Itoa(recvAccount))
+	m.Unlock()
+	return ("done")
+}
+
+func withdraw(AccountNumber int, amount int) int {
+	balance := retrieveUserBalance(strconv.Itoa(AccountNumber))
+
+	sqliteHandler.Conn.Query("update Account_info set Balance = " + strconv.Itoa(balance-amount) + " where Account_Number = " + strconv.Itoa(AccountNumber))
+
+	remain := retrieveUserBalance(strconv.Itoa(AccountNumber))
+
+	return remain
+}
+
+func deposit(AccountNumber int, amount int) int {
+	balance := retrieveUserBalance(strconv.Itoa(AccountNumber))
+
+	sqliteHandler.Conn.Query("update Account_info set Balance = " + strconv.Itoa(balance+amount) + " where Account_Number = " + strconv.Itoa(AccountNumber))
+
+	remain := retrieveUserBalance(strconv.Itoa(AccountNumber))
+
+	return remain
+}
+
+func retrieveUserBalance(AccountNumber string) int {
+
+	data, err := sqliteHandler.Conn.Query("select Balance from Account_info where Account_Number =" + AccountNumber)
 
 	var result []balance
 
 	for data.Next() {
 		var res balance
-		err = data.Scan(&res.AccountName, &res.Balance)
+		err = data.Scan(&res.Balance)
+		checkErr(err)
+		result = append(result, res)
+	}
+	if len(result) != 0 {
+		for _, ele := range result {
+			// fmt.Println(ele.Balance)
+			return ele.Balance
+		}
+	} else {
+		fmt.Println("Data not found!!!")
+	}
+	return 0
+}
+
+func checkBalance(AccountNumber int) {
+	data, err := sqliteHandler.Conn.Query("select date, Account_Name, Account_Number, Phone, Balance from Account_info where Account_Number = " + strconv.Itoa(AccountNumber))
+
+	var result []accountInfo
+
+	for data.Next() {
+		var res accountInfo
+		err = data.Scan(&res.Date, &res.AccountName, &res.AccountNumber, &res.Phone, &res.Balance)
 		checkErr(err)
 		result = append(result, res)
 	}
@@ -58,31 +120,6 @@ func checkBalance() {
 	}
 }
 
-func retrieveUserInfo() {
-	data, err := sqliteHandler.Conn.Query("select id, date, Account_Name, Account_Number, Phone, Balance from Account_info")
-
-	var result []accountInfo
-
-	for data.Next() {
-		var res accountInfo
-		err = data.Scan(&res.ID, &res.Date, &res.AccountName, &res.AccountNumber, &res.Phone, &res.Balance)
-		checkErr(err)
-		result = append(result, res)
-	}
-	if len(result) != 0 {
-		for _, ele := range result {
-			fmt.Printf("Account Id: %d\n", ele.ID)
-			fmt.Printf("Name: %s\n", ele.AccountName)
-			fmt.Printf("Account Number: %d\n", ele.AccountNumber)
-			fmt.Printf("Date: %s\n", ele.Date)
-			fmt.Printf("Phone: %d\n", ele.Phone)
-			fmt.Printf("Balance: %d\n", ele.Balance)
-		}
-	} else {
-		fmt.Println("Data not found!!!")
-	}
-}
-
 func main() {
 	fmt.Println("open mysql")
 
@@ -92,8 +129,8 @@ func main() {
 	sqliteHandler.Conn = db
 
 	defer db.Close()
-	// retrieveUserInfo()
-	checkBalance()
 	fmt.Println("successfully connected to mysql")
+	// checkBalance(123455678)
+	// fmt.Println(tranfer(98765432, 123455678, 1000))
 
 }
